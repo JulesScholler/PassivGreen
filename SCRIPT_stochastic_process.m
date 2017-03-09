@@ -3,13 +3,13 @@ clear
 close all
 
 % Parameters
-N=1;        % Number of simulated random process
-df=0.01;     % Frequency step [Hz.]
-fmax=10;    % Maximum frequency [Hz.]
+N=1;             % Number of simulated random process
+dt=0.05;         % Temporal resolution [s.]
+duration=10000;    % Signal length [s.]
 
-w=(-fmax:df:fmax);
+w=(-duration:dt:duration);
 n=length(w);
-t=0:1/df:(length(w)-1)/df;
+t=(w-min(w))/2;
 R=w.^2.*exp(-w.^2);
 
 % Plot F
