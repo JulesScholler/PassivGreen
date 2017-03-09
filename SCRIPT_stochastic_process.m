@@ -4,7 +4,7 @@ close all
 
 % Parameters
 N=1;        % Number of simulated random process
-df=0.1;     % Frequency step [Hz.]
+df=0.01;     % Frequency step [Hz.]
 fmax=10;    % Maximum frequency [Hz.]
 
 w=(-fmax:df:fmax);
@@ -20,19 +20,14 @@ ylabel 'F(\omega)'
 title 'Source Power Spectrum F(w)=w^2e^{-w^2}'
 set(gca,'FontSize',15)
 
-W=randn(n,N);
-filter=repmat(R',1,N);
+W=randn(n,1);
+filter=fft(fftshift(R))';
 F=sqrt(filter).*fft(W);
-for i=1:min(5,N)
-    figure(2),hold on
-    plot(t,real(ifft(F(:,i))))
-    info{i}=sprintf('Source %d',i);
-end
+
+% Plot random process
 figure(2)
-hold off
+plot(t,real(ifft(F)))
 xlabel 'Time [s.]'
 ylabel 'Amplitude'
 title 'Noise signals'
-legend(info)
-clear info
 set(gca,'fontsize',15)
