@@ -92,8 +92,8 @@ tic
 % Compute response on each receivers
 for j=1:param.nb_receivers
     for i=1:param.N
-        d=norm(param.receivers(j,:)-param.sources(i,:)); % Distance between source and receiver
-        data.r{j}(i,:)=real(ifft(F(i,:).*1/(4*pi*d).*exp(1i*f*2*pi*d)));  % Response after propagation
+        d=norm(param.receivers(j,:)-param.sources(i,:))/param.duration*n; % Distance between source and receiver
+        data.r{j}(i,:)=real(ifft(F(i,:).*1/(4*pi*d).*exp(1i*f*2*pi*h*d)));  % Response after propagation
     end
     data.rtot{j}=sum(data.r{j},1);
 end
