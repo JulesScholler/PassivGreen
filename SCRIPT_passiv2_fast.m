@@ -16,8 +16,10 @@ param.duration=10000;            % Source signals duration [s.]
 param.temporal_sampling=0.05;    % Temporal sampling [s.]
 output.F='no';                 % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
 output.signals='no';           % Plot 5 (or less) received signals
-output.setup='yes';             % Plot experimental setup
-output.xcorr='yes';             % Plot cross-correlations
+output.setup='no';             % Plot experimental setup
+output.xcorr='no';             % Plot cross-correlations
+output.C_N='no';               % Plot C_N (cross-correlation expectations)
+output.C1='no';               % Plot C1 (cross-correlation expectations)
 tic
 % Generate receivers coordinates
 for i=1:param.nb_receivers
@@ -90,12 +92,16 @@ end
 tau.random_process=toc;
 tic
 % Compute response on each receivers
+r=zeros(n,param.N,param.nb_receivers);
+GreenF=r;
+rtot=zeros(n,param.nb_receivers);
 for j=1:param.nb_receivers
     for i=1:param.N
-        d=norm(param.receivers(j,:)-param.sources(i,:))/param.duration*n;
-        data.r{j}(i,:)=real(ifft(F(i,:).*1/(4*pi*d).*exp(1i*f*pi*h*d)));
+        d=norm(param.receivers(j,:)-param.sources(i,:)); % Distance between source and receiver
+        r(:,i,j)=real(ifft(F(i,:).*1/(4*pi*d).*fftshift(exp(1i*w*d))));  % Response after propagation
+        GreenF(:,i,j)=1/(4*pi*d).*exp(1i*w*d);
     end
-    data.rtot{j}=sum(data.r{j},1);
+    rtot(:,j)=sum(r(:,:,j),2);
 end
 tau.compute_response=toc;
 tic
@@ -103,13 +109,15 @@ tic
 if strcmp(output.xcorr,'yes')
     figure(4)
 end
+C=zeros(n,param.nb_receivers);
 for i=1:param.nb_receivers
-    data.C(i,:)=real(ifftshift(ifft(fft(data.rtot{1}).*fft(fliplr(data.rtot{i})))));
-    lags=(-length(data.C(i,:))/2:(length(data.C(i,:))-1)/2)*h;
+    C(:,i)=real(ifftshift(ifft(fft(rtot(:,1)).*fft(fliplr(rtot(:,i))))));
+    C(:,i)=C(:,i)/max(C(:,i));
+    lags=(-n/2:(n-1)/2)*h;
     if strcmp(output.xcorr,'yes')
-        subplot(param.nb_receivers,1,i)
-        plot(lags,data.C(i,:),'k')
-        [~,tmp]=max(abs(data.C(i,:)));
+        subplot(param.nb_receivers,1,i),hold on
+        plot(lags,C(:,i),'k')
+        [~,tmp]=max(abs(C(:,i)));
 %         xlim([lags(tmp)-100 lags(tmp)+100])
         legend(sprintf('xcorr(x_1,x_%d)',i));
         set(gca,'fontsize',15)
@@ -117,4 +125,31 @@ for i=1:param.nb_receivers
         ylabel('Ampl.')
     end
 end
-tau.xcorr=toc
+tau.xcorr=toc;
+
+% Compute C_N(t,x_1,x_j) = expectation with respect to emitted signals of cross-correlation
+tic
+Rw=((w).^2.*exp(-w.^2))';
+C_N=zeros(n,param.N,param.nb_receivers);
+C_Ntot=zeros(n,param.nb_receivers);
+for j=1:param.nb_receivers
+    for s=1:param.N
+        C_N(:,s,j) = real(fftshift(fft(fftshift(conj(GreenF(:,s,1))).*fftshift(GreenF(:,s,j)).*fftshift(Rw))));
+    end
+    C_Ntot(:,j) = sum(C_N(:,:,j),2);
+    C_Ntot(:,j)=C_Ntot(:,j)/max(C_Ntot(:,j));
+    if strcmp(output.C_N,'yes')
+        figure(4)
+        subplot(param.nb_receivers,1,j)
+        plot(lags, C_Ntot(:,j), 'r')
+        if strcmp(output.xcorr,'yes')
+            legend(sprintf('Xcorr(t,x_1,x_%d)',j),sprintf('C_N(t,x_1,x_%d)',j));
+        else
+        legend(sprintf('C_N(t,x_1,x_%d)',j));
+        end
+        set(gca,'fontsize',15)
+        xlabel('Delay [s.]')
+        ylabel('Ampl.')
+    end
+end
+tau.C_N=toc

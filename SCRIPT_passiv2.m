@@ -9,21 +9,23 @@ clear
 
 % Parameters
 param.nb_receivers=5;           % Number of receivers
-param.sigma=[0 0 0];       % Sources std position
+param.sigma=[100 50 100];       % Sources std position
 param.mu=[0 -200 0];            % Sources mean position
-param.N=1;                     % Number of noise sources
-param.duration=10000;            % Source signals duration [s.]
-param.temporal_sampling=0.05;    % Temporal sampling [s.]
-output.F='no';                 % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
-output.signals='no';           % Plot 5 (or less) received signals
+param.N=200;                    % Number of noise sources
+param.duration=10000;           % Source signals duration [s.]
+param.temporal_sampling=0.05;   % Temporal sampling [s.]
+output.F='no';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
+output.signals='no';            % Plot 5 (or less) received signals
 output.setup='yes';             % Plot experimental setup
 output.xcorr='yes';             % Plot cross-correlations
+output.C_N='yes';               % Plot C_N (cross-correlation expectations T inf)
+output.C1='no';               % Plot C1 (cross-correlation expectations T inf and S inf)
 tic
 % Generate receivers coordinates
 for i=1:param.nb_receivers
-            param.receivers(i,:)=[0 5*(i-1) 0];
-%     param.receivers(i,:)=[0 50*(i-1) 0];
-%         param.receivers(i,:)=[50*(i-3) 100 0];
+%     param.receivers(i,:)=[0 5*(i-1) 0];
+        param.receivers(i,:)=[0 50*(i-1) 0];
+    %         param.receivers(i,:)=[50*(i-3) 100 0];
     C(i,:)=[0 0 1]; % Receivers are blue
 end
 if strcmp(output.setup,'yes')
@@ -57,6 +59,7 @@ x=(-param.duration/2:h:param.duration/2); % Define grid for random process simul
 n=length(x);
 t=linspace(0,param.duration,n);
 f=linspace(-1/(2*h),1/(2*h),n);
+w=2*pi*f;
 R=x.^2.*exp(-x.^2);                 % Covariance function
 if strcmp(output.F,'yes') % Plot covariance function
     figure(2)
@@ -67,7 +70,7 @@ if strcmp(output.F,'yes') % Plot covariance function
     set(gca,'FontSize',15)
 end
 W=randn(param.N,n);         % Random white gaussian vector
-filter=fft(fftshift(R));    
+filter=fft(fftshift(R));
 F=sqrt(filter).*fft(W,n,2); % Generate random process with covariance R (F is in Fourier domain for now)
 if strcmp(output.signals,'yes')
     figure(3),hold on
@@ -90,12 +93,23 @@ end
 tau.random_process=toc;
 tic
 % Compute response on each receivers
+r=zeros(param.N,n);
+Rw=(w).^2.*exp(-w.^2);
+C_N=zeros(param.N,n);
 for j=1:param.nb_receivers
     for i=1:param.N
         d=norm(param.receivers(j,:)-param.sources(i,:)); % Distance between source and receiver
-        data.r{j}(i,:)=real(ifft(F(i,:).*1/(4*pi*d).*exp(1i*f*2*pi*d)));  % Response after propagation
+        G=1/(4*pi*d).*exp(1i*w*d);                       % Green function
+        d1=norm(param.receivers(1,:)-param.sources(i,:));
+        G1=1/(4*pi*d).*exp(1i*w*d1);
+        % Compute response on each receivers
+        r(i,:)=real(ifft(F(i,:).*fftshift(G)));
+        % Compute C_N(t,x_1,x_j) = expectation with respect to emitted signals of cross-correlation
+        C_N(i,:) = real(fftshift(fft(fftshift(conj(G1)).*fftshift(G).*fftshift(Rw))));
     end
-    data.rtot{j}=sum(data.r{j},1);
+    data.rtot{j}=sum(r,1);
+    data.C_Ntot(j,:)=sum(C_N, 1);
+    data.C_Ntot(j,:)=data.C_Ntot(j,:)/max(data.C_Ntot(j,:));
 end
 tau.compute_response=toc;
 tic
@@ -105,13 +119,29 @@ if strcmp(output.xcorr,'yes')
 end
 for i=1:param.nb_receivers
     data.C(i,:)=real(ifftshift(ifft(fft(data.rtot{1}).*fft(fliplr(data.rtot{i})))));
-    lags=(-length(data.C(i,:))/2:(length(data.C(i,:))-1)/2)*h;
+    data.C(i,:)=data.C(i,:)/max(data.C(i,:));
+    lags=(-n/2:(n-1)/2)*h;
     if strcmp(output.xcorr,'yes')
-        subplot(param.nb_receivers,1,i)
+        subplot(param.nb_receivers,1,i),hold on
         plot(lags,data.C(i,:),'k')
-        [~,tmp]=max(abs(data.C(i,:)));
-%         xlim([lags(tmp)-100 lags(tmp)+100])
+        %         [~,tmp]=max(abs(data.C(i,:)));
+        %         xlim([lags(tmp)-100 lags(tmp)+100])
         legend(sprintf('xcorr(x_1,x_%d)',i));
+        set(gca,'fontsize',15)
+        xlabel('Delay [s.]')
+        ylabel('Ampl.')
+    end
+    if strcmp(output.C_N,'yes')
+        figure(4)
+        subplot(param.nb_receivers,1,i)
+        plot(lags, data.C_Ntot(i,:), 'r')
+        if strcmp(output.xcorr,'yes')
+            legend(sprintf('Xcorr(t,x_1,x_%d)',i),sprintf('C_N(t,x_1,x_%d)',i));
+        else
+            legend(sprintf('C_N(t,x_1,x_%d)',i));
+        end
+        [~,tmp]=max(abs(data.C_Ntot(i,:)));
+        xlim([lags(tmp)-100 lags(tmp)+100])
         set(gca,'fontsize',15)
         xlabel('Delay [s.]')
         ylabel('Ampl.')
