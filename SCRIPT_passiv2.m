@@ -11,9 +11,9 @@ clear
 param.nb_receivers=5;           % Number of receivers
 param.sigma=[100 50 100];       % Sources std position
 param.mu=[0 -200 0];            % Sources mean position
-param.N=200;                    % Number of noise sources
-param.duration=10000;           % Source signals duration [s.]
-param.temporal_sampling=0.05;   % Temporal sampling [s.]
+param.N=10000;                    % Number of noise sources
+param.duration=1000;           % Source signals duration [s.]
+param.temporal_sampling=0.2;   % Temporal sampling [s.]
 output.F='no';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
 output.signals='no';            % Plot 5 (or less) received signals
 output.setup='yes';             % Plot experimental setup
@@ -23,8 +23,8 @@ output.C1='no';               % Plot C1 (cross-correlation expectations T inf an
 tic
 % Generate receivers coordinates
 for i=1:param.nb_receivers
-%     param.receivers(i,:)=[0 5*(i-1) 0];
-        param.receivers(i,:)=[0 50*(i-1) 0];
+    param.receivers(i,:)=[0 5*(i-1) 0];
+%         param.receivers(i,:)=[0 50*(i-1) 0];
     %         param.receivers(i,:)=[50*(i-3) 100 0];
     C(i,:)=[0 0 1]; % Receivers are blue
 end
@@ -51,7 +51,7 @@ if strcmp(output.setup,'yes')
     clear C
     set(gca,'FontSize',15)
 end
-tau.ini=toc;
+tau.ini=toc
 tic
 % Compute sationnary random process with Fourier method
 h=param.temporal_sampling;
@@ -72,6 +72,7 @@ end
 W=randn(param.N,n);         % Random white gaussian vector
 filter=fft(fftshift(R));
 F=sqrt(filter).*fft(W,n,2); % Generate random process with covariance R (F is in Fourier domain for now)
+clear W
 if strcmp(output.signals,'yes')
     figure(3),hold on
     for i=1:min(5,param.N)
@@ -90,12 +91,12 @@ if strcmp(output.signals,'yes')
     clear info
     set(gca,'fontsize',15)
 end
-tau.random_process=toc;
+tau.random_process=toc
 tic
 % Compute response on each receivers
-r=zeros(param.N,n);
+r=zeros(1,n);
 Rw=(w).^2.*exp(-w.^2);
-C_N=zeros(param.N,n);
+C_N=zeros(1,n);
 for j=1:param.nb_receivers
     for i=1:param.N
         d=norm(param.receivers(j,:)-param.sources(i,:)); % Distance between source and receiver
@@ -103,15 +104,15 @@ for j=1:param.nb_receivers
         d1=norm(param.receivers(1,:)-param.sources(i,:));
         G1=1/(4*pi*d).*exp(1i*w*d1);
         % Compute response on each receivers
-        r(i,:)=real(ifft(F(i,:).*fftshift(G)));
+        r=r+real(ifft(F(i,:).*fftshift(G)));
         % Compute C_N(t,x_1,x_j) = expectation with respect to emitted signals of cross-correlation
-        C_N(i,:) = real(fftshift(fft(fftshift(conj(G1)).*fftshift(G).*fftshift(Rw))));
+        C_N=C_N+real(fftshift(fft(fftshift(conj(G1)).*fftshift(G).*fftshift(Rw))));
     end
-    data.rtot{j}=sum(r,1);
-    data.C_Ntot(j,:)=sum(C_N, 1);
-    data.C_Ntot(j,:)=data.C_Ntot(j,:)/max(data.C_Ntot(j,:));
+    data.rtot{j}=r;
+    data.C_Ntot(j,:)=C_N/max(C_N);
 end
-tau.compute_response=toc;
+clear F
+tau.compute_response=toc
 tic
 % Compute empirical cross-correlation for Green's function estimation
 if strcmp(output.xcorr,'yes')
