@@ -11,11 +11,11 @@ clear
 param.nb_receivers=5;           % Number of receivers
 param.sigma=[100 50 100];       % Sources std position
 param.mu=[0 -200 0];            % Sources mean position
-param.N=100;                    % Number of noise sources
-param.duration=10000;           % Source signals duration [s.]
-param.temporal_sampling=0.05;   % Temporal sampling [s.]
-output.F='yes';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
-output.signals='yes';            % Plot 5 (or less) received signals
+param.N=10;                    % Number of noise sources
+param.duration=1000;           % Source signals duration [s.]
+param.temporal_sampling=0.2;   % Temporal sampling [s.]
+output.F='no';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
+output.signals='no';            % Plot 5 (or less) received signals
 output.setup='yes';             % Plot experimental setup
 output.xcorr='yes';             % Plot cross-correlations
 output.C_N='yes';               % Plot C_N (cross-correlation expectations T inf)
@@ -23,8 +23,8 @@ output.C1='no';               % Plot C1 (cross-correlation expectations T inf an
 tic
 % Generate receivers coordinates
 for i=1:param.nb_receivers
-    param.receivers(i,:)=[0 5*(i-1) 0];
-%         param.receivers(i,:)=[0 50*(i-1) 0];
+%     param.receivers(i,:)=[0 5*(i-1) 0];
+        param.receivers(i,:)=[0 50*(i-1) 0];
     %         param.receivers(i,:)=[50*(i-3) 100 0];
     C(i,:)=[0 0 1]; % Receivers are blue
 end

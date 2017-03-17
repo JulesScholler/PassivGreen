@@ -11,11 +11,11 @@ clear
 param.nb_receivers=5;           % Number of receivers
 param.sigma=[100 50 100];       % Sources std position
 param.mu=[0 -200 0];            % Sources mean position
-param.N=1000;                    % Number of noise sources
+param.N=10;                    % Number of noise sources
 param.duration=10000;           % Source signals duration [s.]
-param.temporal_sampling=0.05;   % Temporal sampling [s.]
+param.temporal_sampling=0.2;   % Temporal sampling [s.]
 output.F='no';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
-output.signals='no';            % Plot 5 (or less) received signals
+output.signals='yes';            % Plot 5 (or less) received signals
 output.setup='yes';             % Plot experimental setup
 output.xcorr='yes';             % Plot cross-correlations
 output.C_N='yes';               % Plot C_N (cross-correlation expectations T inf)
@@ -51,7 +51,7 @@ if strcmp(output.setup,'yes')
     clear C
     set(gca,'FontSize',15)
 end
-tau.ini=toc;
+tau.ini=toc
 tic
 % Compute sationnary random process with Fourier method
 h=param.temporal_sampling;
@@ -91,13 +91,13 @@ if strcmp(output.signals,'yes')
     clear info
     set(gca,'fontsize',15)
 end
-tau.random_process=toc;
+tau.random_process=toc
 tic
 % Compute response on each receivers
-r=zeros(1,n);
 Rw=(w).^2.*exp(-w.^2);
-C_N=zeros(1,n);
 for j=1:param.nb_receivers
+    C_N=zeros(1,n);
+    r=zeros(1,n);
     for i=1:param.N
         d=norm(param.receivers(j,:)-param.sources(i,:)); % Distance between source and receiver
         G=1/(4*pi*d).*exp(1i*w*d);                       % Green function
@@ -112,13 +112,12 @@ for j=1:param.nb_receivers
     data.C_Ntot(j,:)=C_N/max(C_N);
 end
 clear F
-tau.compute_response=toc;
+tau.compute_response=toc
 tic
 % Compute empirical cross-correlation for Green's function estimation
 if strcmp(output.xcorr,'yes')
     figure(4)
 end
-C=zeros(1,n);
 for i=1:param.nb_receivers
     data.C(i,:)=real(ifftshift(ifft(fft(data.rtot{1}).*fft(fliplr(data.rtot{i})))));
     data.C(i,:)=data.C(i,:)/max(data.C(i,:));
