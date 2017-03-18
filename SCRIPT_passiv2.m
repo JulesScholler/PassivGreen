@@ -13,19 +13,19 @@ param.sigma=[100 50 100];       % Sources std position
 param.mu=[0 -200 0];            % Sources mean position
 param.N=100;                    % Number of noise sources
 param.duration=10000;           % Source signals duration [s.]
-param.temporal_sampling=0.05;   % Temporal sampling [s.]
-output.F='yes';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
-output.signals='yes';            % Plot 5 (or less) received signals
+param.temporal_sampling=0.1;   % Temporal sampling [s.]
+output.F='no';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
+output.signals='no';            % Plot 5 (or less) received signals
 output.setup='yes';             % Plot experimental setup
 output.xcorr='yes';             % Plot cross-correlations
-output.C_N='yes';               % Plot C_N (cross-correlation expectations T inf)
+output.C_N='no';               % Plot C_N (cross-correlation expectations T inf)
 output.C1='no';               % Plot C1 (cross-correlation expectations T inf and S inf)
 tic
 % Generate receivers coordinates
 for i=1:param.nb_receivers
-    param.receivers(i,:)=[0 5*(i-1) 0];
-%         param.receivers(i,:)=[0 50*(i-1) 0];
-    %         param.receivers(i,:)=[50*(i-3) 100 0];
+%     param.receivers(i,:)=[0 5*(i-1) 0];
+    param.receivers(i,:)=[0 50*(i-1) 0];
+%       param.receivers(i,:)=[50*(i-3) 100 0];
     C(i,:)=[0 0 1]; % Receivers are blue
 end
 if strcmp(output.setup,'yes')
@@ -80,10 +80,6 @@ if strcmp(output.signals,'yes')
         info{i}=sprintf('Source %d',i);
     end
     hold off
-end
-if strcmp(output.signals,'yes')
-    figure(3)
-    hold off
     xlabel 'Time [s.]'
     ylabel 'Amplitude'
     title 'Noise signals'
@@ -109,43 +105,36 @@ for j=1:param.nb_receivers
         C_N=C_N+real(fftshift(fft(fftshift(conj(G1)).*fftshift(G).*fftshift(Rw))));
     end
     data.rtot{j}=r;
-    data.C_Ntot(j,:)=C_N/max(C_N);
+    data.C_Ntot(j,:)=C_N*(0.25*norm(param.receivers(1,:)-param.receivers(2,:)))/max(C_N);
 end
 clear F
 tau.compute_response=toc
 tic
 % Compute empirical cross-correlation for Green's function estimation
-if strcmp(output.xcorr,'yes')
-    figure(4)
-end
 for i=1:param.nb_receivers
     data.C(i,:)=real(ifftshift(ifft(fft(data.rtot{1}).*fft(fliplr(data.rtot{i})))));
-    data.C(i,:)=data.C(i,:)/max(data.C(i,:));
+%     data.C(i,:)=xcorr(data.rtot{1},data.rtot{i});
+    data.C(i,:)=data.C(i,:)*(0.25*norm(param.receivers(1,:)-param.receivers(2,:)))/max(data.C(i,:));
     lags=(-n/2:(n-1)/2)*h;
+%     lagx=(-n+1:n-1)*h;
     if strcmp(output.xcorr,'yes')
-        subplot(param.nb_receivers,1,i),hold on
-        plot(lags,data.C(i,:),'k')
-        %         [~,tmp]=max(abs(data.C(i,:)));
-        %         xlim([lags(tmp)-100 lags(tmp)+100])
-        legend(sprintf('xcorr(x_1,x_%d)',i));
-        set(gca,'fontsize',15)
-        xlabel('Delay [s.]')
-        ylabel('Ampl.')
+        figure(4),hold on
+        plot(lags,data.C(i,:)+norm(param.receivers(1,:)-param.receivers(i,:)),'k')
+%         plot(lagx,data.C(i,:),'k')
+        legend('Empirical Cross-correlation');
     end
     if strcmp(output.C_N,'yes')
-        figure(4)
-        subplot(param.nb_receivers,1,i)
-        plot(lags, data.C_Ntot(i,:), 'r')
+        figure(4),hold on
+        plot(lags, data.C_Ntot(i,:)+norm(param.receivers(1,:)-param.receivers(i,:)), 'r')
         if strcmp(output.xcorr,'yes')
-            legend(sprintf('Xcorr(t,x_1,x_%d)',i),sprintf('C_N(t,x_1,x_%d)',i));
+            legend('Empirical Cross-correlation','Expectation (T inf)');
         else
-            legend(sprintf('C_N(t,x_1,x_%d)',i));
+            legend('Expectation (T inf)');
         end
-        [~,tmp]=max(abs(data.C_Ntot(i,:)));
-        xlim([lags(tmp)-100 lags(tmp)+100])
-        set(gca,'fontsize',15)
-        xlabel('Delay [s.]')
-        ylabel('Ampl.')
     end
+    xlim([-50 300])
+    set(gca,'fontsize',15)
+    xlabel('Delay [s.]')
+    ylabel('Distance [m.]')
 end
 tau.xcorr=toc
