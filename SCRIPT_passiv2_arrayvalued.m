@@ -11,9 +11,9 @@ clear
 param.nb_receivers=5;           % Number of receivers
 param.sigma=[100 50 100];       % Sources std position
 param.mu=[0 -200 0];            % Sources mean position
-param.N=1;                    % Number of noise sources
+param.N=100;                    % Number of noise sources
 param.duration=1000;           % Source signals duration [s.]
-param.temporal_sampling=0.05;   % Temporal sampling [s.]
+param.temporal_sampling=0.1;   % Temporal sampling [s.]
 output.F='no';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
 output.signals='no';            % Plot 5 (or less) received signals
 output.setup='no';             % Plot experimental setup
@@ -155,19 +155,22 @@ tic
 % Compute C1(t,x_1,x_j) expectation with respect to the distribution of emitted signals
 % and the source positions of cross-correlation
 d1 = @(y1, y2, y3) norm(param.receivers(1,:)-[y1, y2, y3]');
+G1 = @(y1, y2, y3) 1./(4*pi*d1(y1, y2, y3)).* exp(1i*w*d1(y1, y2, y3)); %G(w_i, x_j, y)
 %K = @(y1, y2, y3) mvnpdf([y1; y2; y3], param.mu, param.sigma);
 K = @(y1, y2, y3) normpdf(y1, param.mu(1), param.sigma(1)) .* normpdf(y2, ...
     param.mu(2), param.sigma(2)) .* normpdf(y3, param.mu(3), param.sigma(3));
 
+inf_bounds = param.mu-3*param.sigma; sup_bounds = param.mu+3*param.sigma;
 for j=1:param.nb_receivers
     for i = 1:n
-    d = @(y1, y2, y3) norm(param.receivers(j,:)-[y1, y2, y3]');
-    G = @(y1, y2, y3) 1/(4*pi*d(y1, y2, y3)).* exp(1i*w*d(y1, y2, y3)); %G(w_i, x_j, y)
-    func = @(y1, y2, y3) K(y1, y2, y3) .* conj(G1(y1, y2, y3)) .* G(y1, y2, y3);
-    temp = integral(@(y3) integral(@(y2) integral(@(y1) func(y1, y2, y3),-Inf,Inf,'ArrayValued',true) ...
-        ,-Inf,Inf,'ArrayValued',true),-Inf,Inf,'ArrayValued',true);
+        d = @(y1, y2, y3) norm(param.receivers(j,:)-[y1, y2, y3]');
+        G = @(y1, y2, y3) 1./(4*pi*d(y1, y2, y3)).* exp(1i*w*d(y1, y2, y3)); %G(w_i, x_j, y)
+        func = @(y1, y2, y3) K(y1, y2, y3) .* conj(G1(y1, y2, y3)) .* G(y1, y2, y3);
+        temp = integral(@(y3) integral(@(y2) integral(@(y1) func(y1, y2, y3),...
+            inf_bounds(1),sup_bounds(1),'ArrayValued',true),inf_bounds(2),sup_bounds(2),...
+            'ArrayValued',true),inf_bounds(3),sup_bounds(3),'ArrayValued',true);
     end
-    data.C1(j,:) = real(fftshift(fft(temp.*R)));
+    data.C1(j,:) = real(fftshift(fft(fftshift(temp.*R))));
 end
 
 lags=(-n/2:(n-1)/2)*h;

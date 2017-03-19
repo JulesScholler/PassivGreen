@@ -11,15 +11,15 @@ clear all
 param.nb_receivers=5;           % Number of receivers
 param.sigma=[100 50 100];       % Sources std position
 param.mu=[0 -200 0];            % Sources mean position
-param.N=1;                    % Number of noise sources
+param.N=10;                    % Number of noise sources
 param.duration=10;           % Source signals duration [s.]
-param.temporal_sampling=0.05;   % Temporal sampling [s.]
+param.temporal_sampling=0.1;   % Temporal sampling [s.]
 output.F='no';                  % Plot source power-spectrum (= FFT(auto-correlation) by Wiener-Kintchin th.)
 output.signals='no';            % Plot 5 (or less) received signals
 output.setup='no';             % Plot experimental setup
 output.xcorr='yes';             % Plot cross-correlations
 output.C_N='yes';               % Plot C_N (cross-correlation expectations T inf)
-output.C1='no';               % Plot C1 (cross-correlation expectations T inf and S inf)
+output.C1='yes';               % Plot C1 (cross-correlation expectations T inf and S inf)
 tic
 % Generate receivers coordinates
 for i=1:param.nb_receivers
@@ -154,20 +154,23 @@ tau.xcorr=toc
 tic
 % Compute C1(t,x_1,x_j) expectation with respect to the distribution of emitted signals
 % and the source positions of cross-correlation
-d1 = @(y1, y2, y3) norm(param.receivers(1,:)-[y1, y2, y3]');
-G1 = @(y1, y2, y3, w1) 1/(4*pi*d1(y1, y2, y3)).*exp(1i*w1*d1(y1, y2, y3)); %G(w_i, x_1, y) (n-vector)
+d1 = @(y1, y2, y3) dist_receiver(param.receivers(1,:),y1,y2,y3);
+G1 = @(y1, y2, y3, w1) 1./(4*pi*d1(y1, y2, y3)).*exp(1i*w1*d1(y1, y2, y3)); %G(w_i, x_1, y)
 %K = @(y1, y2, y3) mvnpdf([y1; y2; y3], param.mu, param.sigma);
 K = @(y1, y2, y3) normpdf(y1, param.mu(1), param.sigma(1)) .* normpdf(y2, ...
     param.mu(2), param.sigma(2)) .* normpdf(y3, param.mu(3), param.sigma(3));
 
+inf_bounds = param.mu-3*param.sigma; sup_bounds = param.mu+3*param.sigma;
 for j=1:param.nb_receivers
     tic;
-    d = @(y1, y2, y3) norm(param.receivers(j,:)-[y1, y2, y3]');
-    G = @(y1, y2, y3, w1) 1/(4*pi*d(y1, y2, y3)).* exp(1i*w1*d(y1, y2, y3)); %G(w_i, x_j, y)
+    d = @(y1, y2, y3) dist_receiver(param.receivers(j,:),y1,y2,y3);
+    G = @(y1, y2, y3, w1) 1./(4*pi*d(y1, y2, y3)).* exp(1i*w1*d(y1, y2, y3)); %G(w_i, x_j, y)
     integrand = @(y1,y2,y3,w1) K(y1,y2,y3) .* conj(G1(y1,y2,y3,w1)) .* G(y1,y2,y3,w1);
-    temp = arrayfun(@(w1) integral3(@(y1,y2,y3) integrand(y1,y2,y3,w1),-Inf,Inf,-Inf,Inf,-Inf,Inf), w);
+    temp = arrayfun(@(w1) integral3(@(y1,y2,y3) integrand(y1,y2,y3,w1), ...
+        inf_bounds(1),sup_bounds(1),inf_bounds(2),sup_bounds(2),inf_bounds(3),sup_bounds(3), ...
+        'AbsTol', 1e-11, 'RelTol', 1e-4), w );
     toc
-    data.C1(j,:) = real(fftshift(fft(temp.*R)));
+    data.C1(j,:) = real(fftshift(fft(fftshift(real(temp).*R))));
 end
 
 lags=(-n/2:(n-1)/2)*h;
